@@ -20,40 +20,66 @@ angularDataServiceModule = angular.module "AngularDataServiceModule", ['ngResour
 # todo : how to return a promise that will return the correct resource objects? look into http://docs.angularjs.org/api/ng.$q
 # service
 angularDataServiceModule.factory "dataService",
-  ['$http', 'dataStore', 'dataObject', '$q', ($http, dataStore, dataObject, $q)->
+  ['$http', 'dataStore', 'dataObject', '$q', '$rootScope',($http, dataStore, dataObject, $q,$rootScope)->
     serviceReturn = {
       new: (model, data = null)->
           # if data is provided, that will be used to create the object
           # otherwise an object ready for creation is returned
           new dataObject(model, 'new')
       get: (model, useCache = true)->
-        uri = 'http://localhost/api';
+        baseUri = 'http://localhost/api';
+        uri = ''
         dataReturn = {}
         angular.forEach(model, (value, model)->
+
           value = if value == true then '-' else value
+          dataReturn[model] = []
           if value.match /,/
-            dataReturn[model] = []
+            modelSet = false
             angular.forEach(value.split(','),(value,key)->
+              if !dataStore.isset model,value
+                if !modelSet
+                  modelSet = true
+                  uri += '/'+model+'/'+value
+                else
+                  uri += ','+value
               dataReturn[model].push dataStore.get model,value
             )
-            uri += '/' + model + '/'
-            uri += value
           else
-            uri += '/' + model + '/' + value
+            if value == '-'
+              uri += '/'+model+'/'+value
+            else
+              if !dataStore.isset model,value
+                  uri += '/'+model+'/'+value
+              dataReturn[model].push dataStore.get model,value
         )
-        $http.get(uri).then((d)->
-          angular.forEach(d.data, (modelData, model)->
-            switch(model)
-              when 'links','meta'
-                break
-              else
-                angular.forEach modelData,(post,id)->
-                  dataStore.set model,id,angular.extend(new dataObject(model,id),post)
+        if uri != ''
+          $rootScope.safeApply($http.get(baseUri+uri).then((d)->
+            angular.forEach(d.data, (modelData, model)->
+              switch(model)
+                when 'links','meta'
+                  break
+                else
+                  listResolver = []
+                  angular.forEach modelData,(post,id)->
+                    dataStore.set model,id,angular.extend(new dataObject(model,id),post)
+                    listResolver.push dataStore.get model, id
+                  if dataStore.isset model, '-'
+                    dataStore.set model, '-', $q.all(listResolver)
+                    # we should pick all that is set
+                    # and resolve with them, right?
+            )
+          ,()->
+            # todo: this should parse the url and somehow resolve the things
+            console.log "Oops errors", arguments
           )
-        )
+          )
         ret = {}
         angular.forEach(dataReturn,(promisesForModel, model)->
-          ret[model] = $q.all promisesForModel
+          if promisesForModel.length == 0
+            ret[model] = dataStore.get model,'-'
+          else
+            ret[model] = $q.all promisesForModel
         )
         ret
     }
@@ -113,7 +139,12 @@ angularDataServiceModule.factory "dataStore", ['$q','$rootScope', ($q,$rootScope
       if data[model]? && data[model][dataId]? then true else false
     get: (model, dataId)->
       if @.isset(model,dataId)
-        if data[model][dataId].promise.$$v? then data[model][dataId].promise.$$v else data[model][dataId].promise
+        if data[model][dataId].promise.$$v?
+          data[model][dataId].promise.$$v
+        else
+          $q.all([data[model][dataId].promise]).then((d)->
+            return d[0]
+          )
       else
         if !data[model]?
           data[model] = {}
@@ -122,11 +153,25 @@ angularDataServiceModule.factory "dataStore", ['$q','$rootScope', ($q,$rootScope
         data[model][dataId].promise.then((d)->
           d
         )
+        #data[model][dataId].promise.$$v = {}
         data[model][dataId].promise
     set: (model, dataId, modelData)->
       if !@.isset(model,dataId)
         @.get(model,dataId);
+      #data[model][dataId].promise.$$v =modelData
       data[model][dataId].resolve(modelData)
-      true
   }
 ]
+
+###
+  Grabbed from here : https://coderwall.com/p/ngisma
+###
+angular.module('ng').run(['$rootScope', ($rootScope)->
+  $rootScope.safeApply = (fn)->
+    phase = this.$root.$$phase
+    if(phase == '$apply' || phase == '$digest')
+      if fn? && (typeof(fn) == 'function')
+        fn()
+    else
+      @.$apply(fn)
+])

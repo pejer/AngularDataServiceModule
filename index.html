@@ -27,7 +27,25 @@
 </ul>
 <h3>Datastuff 3!</h3>
 {{ datastuff3 }}
-<input ng-model="datastuff3.name"/>
+<ul>
+    <li ng-repeat="post in datastuff3">
+        <a href="http://localhost/api/{{ post.$model }}/{{ post.slug }}">/{{ post.$model }}/{{ post.slug }}</a>
+        <input ng-model="post.name"/>
+        <input disabled="disabled" ng-model="post.id"/>
+        <button ng-click="post.$save()">save</button><button ng-click="post.$refresh()">refresh</button>
+    </li>
+</ul>
+<h3>Datastuff 4!</h3>
+{{ datastuff4 }}
+<ul>
+    <li ng-repeat="post in datastuff4">
+        <a href="http://localhost/api/{{ post.$model }}/{{ post.slug }}">/{{ post.$model }}/{{ post.slug }}</a>
+        <input ng-model="post.name"/>
+        <input disabled="disabled" ng-model="post.id"/>
+        <button ng-click="post.$save()">save</button><button ng-click="post.$refresh()">refresh</button>
+    </li>
+</ul>
+
 <script src="js/angular.js"></script>
 <script src="js/angular-resource.js"></script>
 <script src="js/AngularDataServiceModule.js"></script>
@@ -36,13 +54,13 @@ var app = angular.module('app',['AngularDataServiceModule']);
 
 function ctrl($location, dataService,dataStore,dataObject,$scope,$http,$q,$rootScope){
     window.document.title = "STARTED!";
-    d = dataService.get({"roaster":"1,2"});
+    d = dataService.get({"roaster":"1,2","blend":true});
 
     $scope.datastuff = d.roaster;
-    $scope.datastuff2 = d.roaster;
+    $scope.datastuff2 = d.blend;
 
     // this only works once the whole thing is loaded
-    $scope.datastuff3 = dataStore.get('roaster','1')
+    // $scope.datastuff3 = dataStore.get('roaster','1')
 
     /*
     defer.promise.then(function(d){
@@ -50,11 +68,11 @@ function ctrl($location, dataService,dataStore,dataObject,$scope,$http,$q,$rootS
     });*/
     tt = function(){
         // this only works.. when.. the complete thing has loaded!
-        // $scope.datastuff3 = dataStore.get('roaster','1')
-        //$rootScope.$apply();
-
+        $scope.datastuff3 = dataService.get({"roaster":"20,2"}).roaster;
+        $scope.datastuff4 = dataService.get({"blend":true}).blend;
     }
-    // setInterval(tt,4000);
+    tt();
+    //setTimeout(tt,4000);
 }
 </script>
 </body>
