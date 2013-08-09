@@ -5,6 +5,7 @@
 </head>
 <body ng-controller="ctrl">
 <h1>Datastuff</h1>
+<p>Should be one roaster, actually an array with one roaster</p>
 {{ datastuff }}
 <ul>
     <li ng-repeat="post in datastuff">
@@ -16,6 +17,7 @@
 </ul>
 
 <h1>Datastuff 2</h1>
+<p>Should be an array with nothing, since, well, this doesn't exist</p>
 {{ datastuff2 }}
 <ul>
     <li ng-repeat="post in datastuff2">
@@ -27,7 +29,25 @@
 </ul>
 <h3>Datastuff 3!</h3>
 {{ datastuff3 }}
-<input ng-model="datastuff3.name"/>
+<ul>
+    <li ng-repeat="post in datastuff3">
+        <a href="http://localhost/api/{{ post.$model }}/{{ post.slug }}">/{{ post.$model }}/{{ post.slug }}</a>
+        <input ng-model="post.name"/>
+        <input disabled="disabled" ng-model="post.id"/>
+        <button ng-click="post.$save()">save</button><button ng-click="post.$refresh()">refresh</button>
+    </li>
+</ul>
+<h3>Datastuff 4!</h3>
+{{ datastuff4 }}
+<ul>
+    <li ng-repeat="post in datastuff4">
+        <a href="http://localhost/api/{{ post.$model }}/{{ post.slug }}">/{{ post.$model }}/{{ post.slug }}</a>
+        <input ng-model="post.name"/>
+        <input disabled="disabled" ng-model="post.id"/>
+        <button ng-click="post.$save()">save</button><button ng-click="post.$refresh()">refresh</button>
+    </li>
+</ul>
+
 <script src="js/angular.js"></script>
 <script src="js/angular-resource.js"></script>
 <script src="js/AngularDataServiceModule.js"></script>
@@ -36,18 +56,28 @@ var app = angular.module('app',['AngularDataServiceModule']);
 
 function ctrl($location, dataService,dataStore,dataObject,$scope,$http,$q,$rootScope){
     window.document.title = "STARTED!";
-    d = dataService.get({"roaster":'1',"blend":true});
+    /*d = dataService.get({"roaster":"1,2","blend":true});
+
     $scope.datastuff = d.roaster;
     $scope.datastuff2 = d.blend;
-    $scope.datastuff3 =  dataStore.get('roaster','1');
+*/
+    // this only works once the whole thing is loaded
+    // $scope.datastuff3 = dataStore.get('roaster','1')
 
-    testt = function(){
-        console.log("HITTING");
-        $scope.datastuff3 = dataService.get({"roaster":'1'});
-        $rootScope.$apply();
+    /*
+    defer.promise.then(function(d){
+        return d
+    });*/
+    $scope.datastuff3 = {};
+    tt = function(){
+        // this only works.. when.. the complete thing has loaded!
+        $scope.datastuff3 = dataService.get({"roaster":"1,2,20"}).roaster;
+        $scope.datastuff4 = dataService.get({"blend":true}).blend;
+        $scope.datastuff2 = dataService.get({"roaster":"20"}).roaster;
+        $scope.datastuff = dataService.get({"roaster":"1"}).roaster;
     }
-
-    setTimeout(testt,2000);
+    tt();
+    //setTimeout(tt,1000);
 }
 </script>
 </body>
