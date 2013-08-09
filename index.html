@@ -47,6 +47,11 @@
         <button ng-click="post.$save()">save</button><button ng-click="post.$refresh()">refresh</button>
     </li>
 </ul>
+<h3>New roaster!</h3>
+<a href="http://localhost/api/{{ datastuff5.$model }}/{{ datastuff5.slug }}">/{{ datastuff5.$model }}/{{ datastuff5.slug }}</a>
+<input ng-model="datastuff5.name"/>
+<input disabled="disabled" ng-model="datastuff5.id"/>
+<button ng-click="datastuff5.$save()">save</button><button ng-click="datastuff5.$refresh()">refresh</button>
 
 <script src="js/angular.js"></script>
 <script src="js/angular-resource.js"></script>
@@ -68,16 +73,13 @@ function ctrl($location, dataService,dataStore,dataObject,$scope,$http,$q,$rootS
     defer.promise.then(function(d){
         return d
     });*/
+    $scope.datastuff5 = dataService.new('roaster');
     $scope.datastuff3 = {};
-    tt = function(){
-        // this only works.. when.. the complete thing has loaded!
-        $scope.datastuff3 = dataService.get({"roaster":"1,2,20"}).roaster;
-        $scope.datastuff4 = dataService.get({"blend":true}).blend;
-        $scope.datastuff2 = dataService.get({"roaster":"20"}).roaster;
-        $scope.datastuff = dataService.get({"roaster":"1"}).roaster;
-    }
-    tt();
-    //setTimeout(tt,1000);
+    $scope.datastuff3 = dataService.get({"roaster":true}).roaster;
+    $scope.datastuff4 = dataService.get({"blend":true}).blend;
+    $scope.datastuff2 = dataService.get({"roaster":"20"}).roaster;
+    $scope.datastuff = dataService.get({"roaster":"1"}).roaster;
+
 }
 </script>
 </body>
