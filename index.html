@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html ng-app="app">
+<head>
+    <title>Just testing</title>
+</head>
+<body ng-controller="ctrl">
+<h1>Datastuff</h1>
+{{ datastuff }}
+<ul>
+    <li ng-repeat="post in datastuff">
+        <a href="http://localhost/api/{{ post.$model }}/{{ post.slug }}">/{{ post.$model }}/{{ post.slug }}</a>
+        <input ng-model="post.name"/>
+        <input disabled="disabled" ng-model="post.id"/>
+        <button ng-click="post.$save()">save</button><button ng-click="post.$refresh()">refresh</button>
+    </li>
+</ul>
+
+<h1>Datastuff 2</h1>
+{{ datastuff2 }}
+<ul>
+    <li ng-repeat="post in datastuff2">
+        <a href="http://localhost/api/{{ post.$model }}/{{ post.slug }}">/{{ post.$model }}/{{ post.slug }}</a>
+        <input ng-model="post.name"/>
+        <input disabled="disabled" ng-model="post.id"/>
+        <button ng-click="post.$save()">save</button><button ng-click="post.$refresh()">refresh</button>
+    </li>
+</ul>
+<h3>Datastuff 3!</h3>
+{{ datastuff3 }}
+<input ng-model="datastuff3.name"/>
+<script src="js/angular.js"></script>
+<script src="js/angular-resource.js"></script>
+<script src="js/AngularDataServiceModule.js"></script>
+<script type="text/javascript">
+var app = angular.module('app',['AngularDataServiceModule']);
+
+function ctrl($location, dataService,dataStore,dataObject,$scope,$http,$q,$rootScope){
+    window.document.title = "STARTED!";
+    d = dataService.get({"roaster":'1',"blend":true});
+    $scope.datastuff = d.roaster;
+    $scope.datastuff2 = d.blend;
+    $scope.datastuff3 =  dataStore.get('roaster','1');
+
+    testt = function(){
+        console.log("HITTING");
+        $scope.datastuff3 = dataService.get({"roaster":'1'});
+        $rootScope.$apply();
+    }
+
+    setTimeout(testt,2000);
+}
+</script>
+</body>
+</html>
