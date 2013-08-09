@@ -21,57 +21,39 @@ angularDataServiceModule = angular.module "AngularDataServiceModule", ['ngResour
 # service
 angularDataServiceModule.factory "dataService",
   ['$http', 'dataStore', 'dataObject', '$q', ($http, dataStore, dataObject, $q)->
-    doneonce = false
     serviceReturn = {
       new: (model, data = null)->
           # if data is provided, that will be used to create the object
           # otherwise an object ready for creation is returned
           new dataObject(model, 'new')
       get: (model, useCache = true)->
-        promises = {}
         uri = 'http://localhost/api';
-        needToFetchData = false;
+        dataReturn = {}
         angular.forEach(model, (value, model)->
-          promises[model] = []
           value = if value == true then '-' else value
           if value.match /,/
-            uri += '/' + model + '/'
-            angular.forEach(value.split(','), (idValue)->
-              cacheValue = dataStore.get(model, idValue)
-              promises[model].push cacheValue
+            dataReturn[model] = []
+            angular.forEach(value.split(','),(value,key)->
+              dataReturn[model].push dataStore.get model,value
             )
+            uri += '/' + model + '/'
             uri += value
           else
-            cacheValue = dataStore.get(model, value)
             uri += '/' + model + '/' + value
-            if value != '-'
-              promises[model].push cacheValue
         )
-        if doneonce == false
-            $http.get(uri).then((origData)->
-              doneonce = true;
-              meta = angular.copy origData.data.meta
-              links = angular.copy origData.data.links
-              data = angular.copy origData.data
-              delete data.meta
-              delete data.links
-              angular.forEach(data, (value, model)->
-                # this trickery needs to stop... somehow
-                dataStore.resolve model, '-', value
-                dataStore.delete model,'-'
-                angular.forEach(data[model], (post, id)->
-                  dataStore.resolve model, id, angular.extend(new dataObject(model, id), post)
-                )
-              )
-            )
-        else
-          return cacheValue
+        $http.get(uri).then((d)->
+          angular.forEach(d.data, (modelData, model)->
+            switch(model)
+              when 'links','meta'
+                break
+              else
+                angular.forEach modelData,(post,id)->
+                  dataStore.set model,id,angular.extend(new dataObject(model,id),post)
+          )
+        )
         ret = {}
-        angular.forEach(promises, (promise, model)->
-          if promise.length == 0
-            ret[model] = dataStore.get model, '-'
-          else
-            ret[model] = $q.all(promise);
+        angular.forEach(dataReturn,(promisesForModel, model)->
+          ret[model] = $q.all promisesForModel
         )
         ret
     }
@@ -93,8 +75,6 @@ angularDataServiceModule.factory "dataObject", ['$http','dataStore', ($http,data
         self = @
         $http.post(@.$generateUri(), @).then((d)->
             angular.forEach(d.data[self.$model], (post, id)->
-                #if id != self.id
-                    # dataStore.set(self.$model,id,self)
                 angular.forEach(post, (value, key)->
                     if self[key] != value
                       self[key] = value
@@ -115,50 +95,38 @@ angularDataServiceModule.factory "dataObject", ['$http','dataStore', ($http,data
       )
 ]
 # basic cache for our service
-# todo : make sure we can extend this with some sort of coool local storage... right?
-angularDataServiceModule.factory "dataStore", ['$q', ($q)->
+# todo: always return promises
+# todo: be able to handle promises and resolved promises
+angularDataServiceModule.factory "dataStore", ['$q','$rootScope', ($q,$rootScope)->
   data = {}
   {
-  flush: ()->
-    data = {}
-  clear: (model)->
-    data.model = {}
-  delete: (model, dataId)->
-    data[model][dataId] = null
-  get: (model, dataId)->
-    if data[model]? && data[model][dataId]?
-
-      if data[model][dataId].promise?
-        console.log model, dataId, "Does have a promise"
-        data[model][dataId].promise
+    flush: (model=false)->
+      if model?
+        data[model] = {}
       else
-        console.log model, dataId, "Does NOT have a promise"
-        data[model][dataId]
-    else
-      defer = $q.defer()
-      @.set(model, dataId, defer)
-      p = defer.promise
-      p.then((d) ->
-        return d
-      )
-      p
-  set: (model, dataId, modelData)->
-    if !data[model]?
-      data[model] = {}
-    data[model][dataId] = modelData
-  resolve: (model, dataId, d)->
-    if dataId == '-' && data[model]? && data[model][dataId]?
-      newData = []
-      self = @
-      angular.forEach(d, (value,key)->
-        newData.push(self.get(model, key))
-      )
-      d = $q.all(newData)
-    if !data[model]? || !data[model][dataId]?
-      @.get(model, dataId)
-      data[model][dataId].resolve(d)
-    else
-      data[model][dataId].resolve(d)
-      console.log model,dataId,data[model][dataId].promise
+        data = {}
+    clear: (model)->
+      data.model = {}
+    delete: (model, dataId)->
+      delete data[model][dataId]
+    isset: (model,dataId)->
+      if data[model]? && data[model][dataId]? then true else false
+    get: (model, dataId)->
+      if @.isset(model,dataId)
+        if data[model][dataId].promise.$$v? then data[model][dataId].promise.$$v else data[model][dataId].promise
+      else
+        if !data[model]?
+          data[model] = {}
+          # should we .... really set some sort of promise here? Good or bad, who knows?!?!
+        data[model][dataId] = $q.defer()
+        data[model][dataId].promise.then((d)->
+          d
+        )
+        data[model][dataId].promise
+    set: (model, dataId, modelData)->
+      if !@.isset(model,dataId)
+        @.get(model,dataId);
+      data[model][dataId].resolve(modelData)
+      true
   }
 ]

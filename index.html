@@ -36,18 +36,25 @@ var app = angular.module('app',['AngularDataServiceModule']);
 
 function ctrl($location, dataService,dataStore,dataObject,$scope,$http,$q,$rootScope){
     window.document.title = "STARTED!";
-    d = dataService.get({"roaster":'1',"blend":true});
+    d = dataService.get({"roaster":"1,2"});
+
     $scope.datastuff = d.roaster;
-    $scope.datastuff2 = d.blend;
-    $scope.datastuff3 =  dataStore.get('roaster','1');
+    $scope.datastuff2 = d.roaster;
 
-    testt = function(){
-        console.log("HITTING");
-        $scope.datastuff3 = dataService.get({"roaster":'1'});
-        $rootScope.$apply();
+    // this only works once the whole thing is loaded
+    $scope.datastuff3 = dataStore.get('roaster','1')
+
+    /*
+    defer.promise.then(function(d){
+        return d
+    });*/
+    tt = function(){
+        // this only works.. when.. the complete thing has loaded!
+        // $scope.datastuff3 = dataStore.get('roaster','1')
+        //$rootScope.$apply();
+
     }
-
-    setTimeout(testt,2000);
+    // setInterval(tt,4000);
 }
 </script>
 </body>
