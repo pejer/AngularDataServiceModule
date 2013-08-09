@@ -5,6 +5,7 @@
 </head>
 <body ng-controller="ctrl">
 <h1>Datastuff</h1>
+<p>Should be one roaster, actually an array with one roaster</p>
 {{ datastuff }}
 <ul>
     <li ng-repeat="post in datastuff">
@@ -16,6 +17,7 @@
 </ul>
 
 <h1>Datastuff 2</h1>
+<p>Should be an array with nothing, since, well, this doesn't exist</p>
 {{ datastuff2 }}
 <ul>
     <li ng-repeat="post in datastuff2">
@@ -54,11 +56,11 @@ var app = angular.module('app',['AngularDataServiceModule']);
 
 function ctrl($location, dataService,dataStore,dataObject,$scope,$http,$q,$rootScope){
     window.document.title = "STARTED!";
-    d = dataService.get({"roaster":"1,2","blend":true});
+    /*d = dataService.get({"roaster":"1,2","blend":true});
 
     $scope.datastuff = d.roaster;
     $scope.datastuff2 = d.blend;
-
+*/
     // this only works once the whole thing is loaded
     // $scope.datastuff3 = dataStore.get('roaster','1')
 
@@ -66,13 +68,16 @@ function ctrl($location, dataService,dataStore,dataObject,$scope,$http,$q,$rootS
     defer.promise.then(function(d){
         return d
     });*/
+    $scope.datastuff3 = {};
     tt = function(){
         // this only works.. when.. the complete thing has loaded!
-        $scope.datastuff3 = dataService.get({"roaster":"20,2"}).roaster;
+        $scope.datastuff3 = dataService.get({"roaster":"1,2,20"}).roaster;
         $scope.datastuff4 = dataService.get({"blend":true}).blend;
+        $scope.datastuff2 = dataService.get({"roaster":"20"}).roaster;
+        $scope.datastuff = dataService.get({"roaster":"1"}).roaster;
     }
     tt();
-    //setTimeout(tt,4000);
+    //setTimeout(tt,1000);
 }
 </script>
 </body>
