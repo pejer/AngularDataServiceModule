@@ -58,6 +58,12 @@
 <script src="js/AngularDataServiceModule.js"></script>
 <script type="text/javascript">
 var app = angular.module('app',['AngularDataServiceModule']);
+app.constant('angularDataServiceConfig', {
+    baseUri:"http://localhost/api",
+    timeout: 1000,
+    modelUri: "http://localhost/api/{{ $model }}/{{ id }}"
+    }
+);
 
 function ctrl($location, dataService,dataStore,dataObject,$scope,$http,$q,$rootScope){
     window.document.title = "STARTED!";

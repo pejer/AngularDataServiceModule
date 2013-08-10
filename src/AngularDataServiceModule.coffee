@@ -14,12 +14,14 @@ angularDataServiceModule = angular.module "AngularDataServiceModule", ['ngResour
   + Events for when data is being updated
 ###
 # service
+
+#angularDataServiceModule.
 angularDataServiceModule.factory "dataService",
-  ['$http', 'dataStore', 'dataObject', '$q', '$rootScope',($http, dataStore, dataObject, $q,$rootScope)->
-    config = {
-      baseUri: "http://localhost/api"
-      timeOut: 1000
-    }
+  ['$http', 'dataStore', 'dataObject', '$q', '$rootScope','angularDataServiceConfig',($http, dataStore, dataObject, $q,$rootScope,config)->
+    #config = {
+    #  baseUri: "http://localhost/api"
+    #  timeOut: 1000
+    #}
     serviceReturn = {
       new: (model)->
           new dataObject(model, 'new')
@@ -82,7 +84,7 @@ angularDataServiceModule.factory "dataService",
     serviceReturn
   ]
 
-angularDataServiceModule.factory "dataObject", ['$http', ($http)->
+angularDataServiceModule.factory "dataObject", ['$http','angularDataServiceConfig', ($http,config)->
   # walk through the data
   # connect, if present, resource to each other
   # have methods to update self (only)
@@ -90,7 +92,8 @@ angularDataServiceModule.factory "dataObject", ['$http', ($http)->
   class
     constructor: (@$model, @id = 'new')->
     $generateUri: ()->
-        'http://localhost/api/' + @$model + '/' + @.id;
+        console.log "Something something"
+        config.baseUri+'/'+@.$model+'/'+ @.id;
     # save : should create a new one if necessary
     $save: ()->
         self = @
@@ -141,7 +144,7 @@ angularDataServiceModule.factory "dataStore", ['$q','$timeout', ($q,$timeout)->
         data[model][dataId].promise.then((responseData)->
           responseData
         )
-        # timeout is here so that when an error or 404 occurs, the promise still fires
+        # timeout is here so that when an error or 404 occurs, the promise still resolves
         $timeout ()->
           data[model][dataId].resolve()
         ,timeout
