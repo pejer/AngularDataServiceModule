@@ -61,13 +61,9 @@ angularDataServiceModule.factory "dataService",
                 else
                   listResolver = []
                   angular.forEach modelData, (post, id)->
-                      # what if we have a slug ... ?
-                    if post.slug? && dataStore.inStore model, post.slug
-                        # can... we connect slugs with id's? We... might?
-                        dataStore.set model, post.slug, angular.extend(new dataObject(model, id), post)
-                        dataStore.set(model, id, dataStore.get(model,post.slug))
-                    else
-                        dataStore.set model, id, angular.extend(new dataObject(model, id), post)
+                    dataStore.set model, id, angular.extend(new dataObject(model, id), post)
+                    if post.slug?   # if something called 'slug' exist, let's map that to the id of the post
+                      dataStore.set model, post.slug, dataStore.get model, id
                     listResolver.push dataStore.get model, id
                   if dataStore.inStore model, '-'
                     dataStore.set model, '-', $q.all(listResolver)
@@ -100,7 +96,6 @@ angularDataServiceModule.factory "dataObject", ['$http','angularDataServiceConfi
   class
     constructor: (@$model, @id = 'new')->
     $generateUri: ()->
-        console.log "Something something"
         config.baseUri+'/'+@.$model+'/'+ @.id;
     # save : should create a new one if necessary
     $save: ()->
@@ -135,33 +130,52 @@ angularDataServiceModule.factory "dataStore", ['$q','$timeout','$rootScope', ($q
       data[model] = {}
     delete: (model, dataId)->
       delete data[model][dataId]
-    inStore: (model,dataId)->
-      if data[model]? && data[model][dataId]? then true else false
-    get: (model, dataId,timeout=1000)->
+    inStore: (model,dataId = null)->
+      if data[model]?
+          if dataId != null
+            return if data[model][dataId]? then true else false
+          else
+            return if data[model]? then true else false
+      else
+        false
+    get: (model, dataId = null,timeout=1000)->
       $timeout $rootScope.safeApply,10 # ugly hack to trigger the changes
       if @.inStore(model,dataId)
-        if data[model][dataId].promise.$$v?
-          data[model][dataId].promise.$$v
+        if dataId != null
+          dataObject = data[model][dataId]
         else
-          $q.all([data[model][dataId].promise]).then((responseData)->
+          dataObject = data[model]
+        if dataObject.promise? && dataObject.promise.$$v?
+            return dataObject.promise.$$v
+        else
+          $q.all([dataObject.promise]).then((responseData)->
             return responseData[0]
           )
       else
         if !data[model]?
           data[model] = {}
-        data[model][dataId] = $q.defer()
-        data[model][dataId].promise.then((responseData)->
+        deferedObject = $q.defer()
+        deferedObject.promise.then((responseData)->
           responseData
         )
         # timeout is here so that when an error or 404 occurs, the promise still resolves
         $timeout ()->
-          data[model][dataId].resolve()
+            deferedObject.resolve()
         ,timeout
-        data[model][dataId].promise
-    set: (model, dataId, modelData)->
-      if !@.inStore(model,dataId)
-        @.get(model,dataId);
-      data[model][dataId].resolve(modelData)
+        if dataId != null
+          data[model][dataId] = deferedObject
+        else
+          data[model] = deferedObject
+        deferedObject.promise
+    set: (model, dataId, modelData = null)->
+      if modelData == null
+        if !@.inStore(model)
+          @.get(model)
+        data[model].resolve(dataId)
+      else
+        if !@.inStore(model,dataId)
+          @.get(model,dataId)
+        data[model][dataId].resolve(modelData)
   }
 ]
 
