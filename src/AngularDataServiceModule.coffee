@@ -23,6 +23,7 @@ angularDataServiceModule.factory "dataService",
     #  timeOut: 1000
     #}
     serviceReturn = {
+      version: "0.1"
       new: (model)->
           new dataObject(model, 'new')
       get: (model, timeout = config.timeOut)->
@@ -34,7 +35,7 @@ angularDataServiceModule.factory "dataService",
           if value.match /,/
             modelSet = false
             angular.forEach(value.split(','),(value)->
-              if !dataStore.isset model,value
+              if !dataStore.inStore model,value
                 if !modelSet
                   modelSet = true
                   uri += '/'+model+'/'+value
@@ -46,7 +47,7 @@ angularDataServiceModule.factory "dataService",
             if value == '-'
               uri += '/'+model+'/'+value
             else
-              if !dataStore.isset model,value
+              if !dataStore.inStore model,value
                   uri += '/'+model+'/'+value
               dataReturn[model].push dataStore.get model,value, timeout
         )
@@ -61,7 +62,7 @@ angularDataServiceModule.factory "dataService",
                   angular.forEach modelData, (post, id)->
                     dataStore.set model, id, angular.extend(new dataObject(model, id), post)
                     listResolver.push dataStore.get model, id
-                  if dataStore.isset model, '-'
+                  if dataStore.inStore model, '-'
                     dataStore.set model, '-', $q.all(listResolver)
               )
             )
@@ -127,10 +128,10 @@ angularDataServiceModule.factory "dataStore", ['$q','$timeout', ($q,$timeout)->
       data[model] = {}
     delete: (model, dataId)->
       delete data[model][dataId]
-    isset: (model,dataId)->
+    inStore: (model,dataId)->
       if data[model]? && data[model][dataId]? then true else false
     get: (model, dataId,timeout=1000)->
-      if @.isset(model,dataId)
+      if @.inStore(model,dataId)
         if data[model][dataId].promise.$$v?
           data[model][dataId].promise.$$v
         else
@@ -150,7 +151,7 @@ angularDataServiceModule.factory "dataStore", ['$q','$timeout', ($q,$timeout)->
         ,timeout
         data[model][dataId].promise
     set: (model, dataId, modelData)->
-      if !@.isset(model,dataId)
+      if !@.inStore(model,dataId)
         @.get(model,dataId);
       data[model][dataId].resolve(modelData)
   }
