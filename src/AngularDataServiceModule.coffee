@@ -32,20 +32,21 @@ angularDataServiceModule.factory "dataService",
         angular.forEach(model, (value, model)->
           value = if value == true then '-' else value
           dataReturn[model] = []
-          if value.match /,/
-            modelSet = false
-            angular.forEach(value.split(','),(value)->
-              if !dataStore.inStore model,value
-                if !modelSet
-                  modelSet = true
-                  uri += '/'+model+'/'+value
-                else
-                  uri += ','+value
-              dataReturn[model].push dataStore.get model,value,timeout
-            )
-          else
-            if value == '-'
-              uri += '/'+model+'/'+value
+          switch (true)
+            when value.indexOf(',')!=-1 # several values, delimited with
+              if value.match /,/
+                modelSet = false
+                angular.forEach(value.split(','),(value)->
+                  if !dataStore.inStore model,value
+                    if !modelSet
+                      modelSet = true
+                      uri += '/'+model+'/'+value
+                    else
+                      uri += ','+value
+                  dataReturn[model].push dataStore.get model,value,timeout
+                )
+            when value == '-' # case with getting whatever we could from that model
+                uri += '/'+model+'/'+value
             else
               if !dataStore.inStore model,value
                   uri += '/'+model+'/'+value
@@ -60,7 +61,13 @@ angularDataServiceModule.factory "dataService",
                 else
                   listResolver = []
                   angular.forEach modelData, (post, id)->
-                    dataStore.set model, id, angular.extend(new dataObject(model, id), post)
+                      # what if we have a slug ... ?
+                    if post.slug? && dataStore.inStore model, post.slug
+                        # can... we connect slugs with id's? We... might?
+                        dataStore.set model, post.slug, angular.extend(new dataObject(model, id), post)
+                        dataStore.set(model, id, dataStore.get(model,post.slug))
+                    else
+                        dataStore.set model, id, angular.extend(new dataObject(model, id), post)
                     listResolver.push dataStore.get model, id
                   if dataStore.inStore model, '-'
                     dataStore.set model, '-', $q.all(listResolver)
@@ -116,7 +123,7 @@ angularDataServiceModule.factory "dataObject", ['$http','angularDataServiceConfi
       )
 ]
 
-angularDataServiceModule.factory "dataStore", ['$q','$timeout', ($q,$timeout)->
+angularDataServiceModule.factory "dataStore", ['$q','$timeout','$rootScope', ($q,$timeout,$rootScope)->
   data = {}
   {
     flush: (model=false)->
@@ -131,6 +138,7 @@ angularDataServiceModule.factory "dataStore", ['$q','$timeout', ($q,$timeout)->
     inStore: (model,dataId)->
       if data[model]? && data[model][dataId]? then true else false
     get: (model, dataId,timeout=1000)->
+      $timeout $rootScope.safeApply,10 # ugly hack to trigger the changes
       if @.inStore(model,dataId)
         if data[model][dataId].promise.$$v?
           data[model][dataId].promise.$$v
@@ -162,10 +170,14 @@ angularDataServiceModule.factory "dataStore", ['$q','$timeout', ($q,$timeout)->
 ###
 angular.module('ng',null,null).run(['$rootScope', ($rootScope)->
   $rootScope.safeApply = (fn)->
-    phase = this.$root.$$phase
-    if(phase == '$apply' || phase == '$digest')
+    if @.$root? && @.$root.$$phase?
+        phase = @.$root.$$phase
+        if(phase == '$apply' || phase == '$digest')
+          if fn? && (typeof(fn) == 'function')
+            fn()
+        else
+          @.$apply(fn)
+    else
       if fn? && (typeof(fn) == 'function')
         fn()
-    else
-      @.$apply(fn)
 ])
