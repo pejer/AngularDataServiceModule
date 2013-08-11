@@ -14,13 +14,16 @@ angularDataServiceModule = angular.module "AngularDataServiceModule", ['ngResour
   + Events for when data is being updated
 ###
 # service
+
+#angularDataServiceModule.
 angularDataServiceModule.factory "dataService",
-  ['$http', 'dataStore', 'dataObject', '$q', '$rootScope',($http, dataStore, dataObject, $q,$rootScope)->
-    config = {
-      baseUri: "http://localhost/api"
-      timeOut: 1000
-    }
+  ['$http', 'dataStore', 'dataObject', '$q', '$rootScope','angularDataServiceConfig',($http, dataStore, dataObject, $q,$rootScope,config)->
+    #config = {
+    #  baseUri: "http://localhost/api"
+    #  timeOut: 1000
+    #}
     serviceReturn = {
+      version: "0.1"
       new: (model)->
           new dataObject(model, 'new')
       get: (model, timeout = config.timeOut)->
@@ -29,22 +32,23 @@ angularDataServiceModule.factory "dataService",
         angular.forEach(model, (value, model)->
           value = if value == true then '-' else value
           dataReturn[model] = []
-          if value.match /,/
-            modelSet = false
-            angular.forEach(value.split(','),(value)->
-              if !dataStore.isset model,value
-                if !modelSet
-                  modelSet = true
-                  uri += '/'+model+'/'+value
-                else
-                  uri += ','+value
-              dataReturn[model].push dataStore.get model,value,timeout
-            )
-          else
-            if value == '-'
-              uri += '/'+model+'/'+value
+          switch (true)
+            when value.indexOf(',')!=-1 # several values, delimited with
+              if value.match /,/
+                modelSet = false
+                angular.forEach(value.split(','),(value)->
+                  if !dataStore.inStore model,value
+                    if !modelSet
+                      modelSet = true
+                      uri += '/'+model+'/'+value
+                    else
+                      uri += ','+value
+                  dataReturn[model].push dataStore.get model,value,timeout
+                )
+            when value == '-' # case with getting whatever we could from that model
+                uri += '/'+model+'/'+value
             else
-              if !dataStore.isset model,value
+              if !dataStore.inStore model,value
                   uri += '/'+model+'/'+value
               dataReturn[model].push dataStore.get model,value, timeout
         )
@@ -58,8 +62,10 @@ angularDataServiceModule.factory "dataService",
                   listResolver = []
                   angular.forEach modelData, (post, id)->
                     dataStore.set model, id, angular.extend(new dataObject(model, id), post)
+                    if post.slug?   # if something called 'slug' exist, let's map that to the id of the post
+                      dataStore.set model, post.slug, dataStore.get model, id
                     listResolver.push dataStore.get model, id
-                  if dataStore.isset model, '-'
+                  if dataStore.inStore model, '-'
                     dataStore.set model, '-', $q.all(listResolver)
               )
             )
@@ -82,7 +88,7 @@ angularDataServiceModule.factory "dataService",
     serviceReturn
   ]
 
-angularDataServiceModule.factory "dataObject", ['$http', ($http)->
+angularDataServiceModule.factory "dataObject", ['$http','angularDataServiceConfig', ($http,config)->
   # walk through the data
   # connect, if present, resource to each other
   # have methods to update self (only)
@@ -90,7 +96,7 @@ angularDataServiceModule.factory "dataObject", ['$http', ($http)->
   class
     constructor: (@$model, @id = 'new')->
     $generateUri: ()->
-        'http://localhost/api/' + @$model + '/' + @.id;
+        config.baseUri+'/'+@.$model+'/'+ @.id;
     # save : should create a new one if necessary
     $save: ()->
         self = @
@@ -112,7 +118,7 @@ angularDataServiceModule.factory "dataObject", ['$http', ($http)->
       )
 ]
 
-angularDataServiceModule.factory "dataStore", ['$q','$timeout', ($q,$timeout)->
+angularDataServiceModule.factory "dataStore", ['$q','$timeout','$rootScope', ($q,$timeout,$rootScope)->
   data = {}
   {
     flush: (model=false)->
@@ -124,32 +130,52 @@ angularDataServiceModule.factory "dataStore", ['$q','$timeout', ($q,$timeout)->
       data[model] = {}
     delete: (model, dataId)->
       delete data[model][dataId]
-    isset: (model,dataId)->
-      if data[model]? && data[model][dataId]? then true else false
-    get: (model, dataId,timeout=1000)->
-      if @.isset(model,dataId)
-        if data[model][dataId].promise.$$v?
-          data[model][dataId].promise.$$v
+    inStore: (model,dataId = null)->
+      if data[model]?
+          if dataId != null
+            return if data[model][dataId]? then true else false
+          else
+            return if data[model]? then true else false
+      else
+        false
+    get: (model, dataId = null,timeout=1000)->
+      $timeout $rootScope.safeApply,10 # ugly hack to trigger the changes
+      if @.inStore(model,dataId)
+        if dataId != null
+          dataObject = data[model][dataId]
         else
-          $q.all([data[model][dataId].promise]).then((responseData)->
+          dataObject = data[model]
+        if dataObject.promise? && dataObject.promise.$$v?
+            return dataObject.promise.$$v
+        else
+          $q.all([dataObject.promise]).then((responseData)->
             return responseData[0]
           )
       else
         if !data[model]?
           data[model] = {}
-        data[model][dataId] = $q.defer()
-        data[model][dataId].promise.then((responseData)->
+        deferedObject = $q.defer()
+        deferedObject.promise.then((responseData)->
           responseData
         )
-        # timeout is here so that when an error or 404 occurs, the promise still fires
+        # timeout is here so that when an error or 404 occurs, the promise still resolves
         $timeout ()->
-          data[model][dataId].resolve()
+            deferedObject.resolve()
         ,timeout
-        data[model][dataId].promise
-    set: (model, dataId, modelData)->
-      if !@.isset(model,dataId)
-        @.get(model,dataId);
-      data[model][dataId].resolve(modelData)
+        if dataId != null
+          data[model][dataId] = deferedObject
+        else
+          data[model] = deferedObject
+        deferedObject.promise
+    set: (model, dataId, modelData = null)->
+      if modelData == null
+        if !@.inStore(model)
+          @.get(model)
+        data[model].resolve(dataId)
+      else
+        if !@.inStore(model,dataId)
+          @.get(model,dataId)
+        data[model][dataId].resolve(modelData)
   }
 ]
 
@@ -158,10 +184,14 @@ angularDataServiceModule.factory "dataStore", ['$q','$timeout', ($q,$timeout)->
 ###
 angular.module('ng',null,null).run(['$rootScope', ($rootScope)->
   $rootScope.safeApply = (fn)->
-    phase = this.$root.$$phase
-    if(phase == '$apply' || phase == '$digest')
+    if @.$root? && @.$root.$$phase?
+        phase = @.$root.$$phase
+        if(phase == '$apply' || phase == '$digest')
+          if fn? && (typeof(fn) == 'function')
+            fn()
+        else
+          @.$apply(fn)
+    else
       if fn? && (typeof(fn) == 'function')
         fn()
-    else
-      @.$apply(fn)
 ])
