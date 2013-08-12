@@ -30,13 +30,16 @@ angularDataServiceModule.factory "dataService",
         uri = ''
         dataReturn = {}
         angular.forEach(model, (value, model)->
-          value = if value == true then '-' else value
+          # value = if value == true then '-' else value
           dataReturn[model] = []
-          switch (true)
-            when value.indexOf(',')!=-1 # several values, delimited with
-              if value.match /,/
+          switch true
+            when value == true # case with getting whatever we could from that model
+                  uri += '/'+model+'/-'
+            #when value.indexOf(',')!=-1 # several values, delimited with
+            # this should actually be an array
+            when typeof value != 'string'
                 modelSet = false
-                angular.forEach(value.split(','),(value)->
+                angular.forEach(value,(value)->
                   if !dataStore.inStore model,value
                     if !modelSet
                       modelSet = true
@@ -45,8 +48,6 @@ angularDataServiceModule.factory "dataService",
                       uri += ','+value
                   dataReturn[model].push dataStore.get model,value,timeout
                 )
-            when value == '-' # case with getting whatever we could from that model
-                uri += '/'+model+'/'+value
             else
               if !dataStore.inStore model,value
                   uri += '/'+model+'/'+value
