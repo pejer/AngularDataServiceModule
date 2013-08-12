@@ -35,23 +35,23 @@ angularDataServiceModule.factory "dataService",
           switch true
             when value == true # case with getting whatever we could from that model
                   uri += '/'+model+'/-'
-            #when value.indexOf(',')!=-1 # several values, delimited with
-            # this should actually be an array
-            when typeof value != 'string'
-                modelSet = false
-                angular.forEach(value,(value)->
-                  if !dataStore.inStore model,value
-                    if !modelSet
-                      modelSet = true
-                      uri += '/'+model+'/'+value
-                    else
-                      uri += ','+value
-                  dataReturn[model].push dataStore.get model,value,timeout
-                )
-            else
-              if !dataStore.inStore model,value
-                  uri += '/'+model+'/'+value
-              dataReturn[model].push dataStore.get model,value, timeout
+            when typeof value == 'string'
+                if !dataStore.inStore model,value
+                    uri += '/'+model+'/'+value
+                dataReturn[model].push dataStore.get model,value, timeout
+            when typeof value == 'object'
+              modelSet = false
+              angular.forEach(value,(value)->
+                if !dataStore.inStore model,value
+                  if !modelSet
+                    modelSet = true
+                    uri += '/'+model+'/'+value
+                  else
+                    uri += ','+value
+                dataReturn[model].push dataStore.get model,value,timeout
+              )
+            else # should we have an else here and what should it do?
+              return false
         )
         if uri != ''
           $rootScope.safeApply($http.get(config.baseUri + uri).then((responseData)->
