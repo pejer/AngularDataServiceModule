@@ -122,15 +122,15 @@ angularDataServiceModule.factory "dataObject", ['$http','angularDataServiceConfi
 angularDataServiceModule.factory "dataStore", ['$q','$timeout','$rootScope', ($q,$timeout,$rootScope)->
   data = {}
   {
-    flush: (model=false)->
+    flush: (model)->
       if model?
         data[model] = {}
       else
         data = {}
     clear: (model)->
       data[model] = {}
-    delete: (model, dataId)->
-      delete data[model][dataId]
+    delete: (model, dataId = null)->
+      if dataId == null then delete data[model] else delete data[model][dataId]
     inStore: (model,dataId = null)->
       if data[model]?
           if dataId != null
@@ -177,8 +177,11 @@ angularDataServiceModule.factory "dataStore", ['$q','$timeout','$rootScope', ($q
         if !@.inStore(model,dataId)
           @.get(model,dataId)
         data[model][dataId].resolve(modelData)
+
+      @.get(model,dataId)
   }
 ]
+
 
 ###
   Grabbed from here : https://coderwall.com/p/ngisma
