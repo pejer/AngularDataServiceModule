@@ -14,9 +14,17 @@ module.exports = function (config) {
         ],
         autoWatch: true,
         browsers: ['Chrome'],
+        reporters:['progress','coverage'],
         junitReporter: {
             outputFile: 'test_out/unit.xml',
             suite: 'unit'
+        },
+        preprocessors: {
+            'js/angularDataServiceModule.js': 'coverage'
+        },
+        coverageReporter: {
+            type: 'html',
+            dir: 'coverage/'
         }
     });
 }
