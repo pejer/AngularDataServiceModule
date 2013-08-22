@@ -57,18 +57,32 @@
 
 <script src="js/angular.js"></script>
 <script src="js/angular-resource.js"></script>
+<script src="js/http-auth-interceptor.js"></script>
 <script src="js/AngularDataServiceModule.js"></script>
 <script type="text/javascript">
-var app = angular.module('app',['AngularDataServiceModule']);
+var app = angular.module('app',['AngularDataServiceModule','http-auth-interceptor']);
 app.constant('angularDataServiceConfig', {
     baseUri:"http://localhost/api",
-    timeout: 1000,
+    timeout: 10000,
     modelUri: "http://localhost/api/{{ $model }}/{{ id }}"
     }
 );
 
-function ctrl($location, dataService,dataStore,dataObject,$scope,$http,$q,$rootScope){
+function ctrl($location, dataService,dataStore,dataObject,$scope,$http,$q,$rootScope,authService){
     window.document.title = "STARTED!";
+    $http.defaults.headers.common['AUTH-TOKEN'] = 'wrong_secret'
+    $scope.$on('event:auth-loginConfirmed', function(event,token) {
+        $scope.$on('event:test', function(event, arg){
+            arg.config.headers['AUTH-TOKEN']=token;
+        })
+    });
+    $scope.$on('event:auth-loginRequired', function() {
+        $http.defaults.headers.common['AUTH-TOKEN'] = 'secret'
+        authService.loginConfirmed('secret');
+    });
+    // console.log($http.defaults.headers.common);
+    dataStore.set('user',dataService.get({'blend':'1'}).blend);
+    $scope.whatthe = dataStore.get('user')
 
     $scope.datastuff5 = dataService.new('roaster');
     $scope.datastuff3 = {};
@@ -78,9 +92,8 @@ function ctrl($location, dataService,dataStore,dataObject,$scope,$http,$q,$rootS
     $scope.datastuff = dataService.get({"roaster":"costas-roastery"}).roaster;
 
     kk = function(){
+
         $scope.datastuff2 = dataService.get({'roaster':'1'}).roaster;
-        dataStore.set('user',{'Name':"Henri"});
-        $scope.whatthe = dataStore.get('user')
         $scope.whatthe2 = dataStore.get('roaster',1)
     }
 
