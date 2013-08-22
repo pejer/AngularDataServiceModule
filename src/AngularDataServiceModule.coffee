@@ -1,3 +1,5 @@
+'use strict'
+
 angularDataServiceModule = angular.module "AngularDataServiceModule", ['ngResource'], null
 ###
   Created by Henrik Pejer  mr (at) henrikpejer.com
