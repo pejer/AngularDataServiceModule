@@ -8,16 +8,18 @@
 'use strict';
 
 describe('angularDataServiceModule', function(){
-    var ds, $httpBackend,$rs,store;
+    var ds, $httpBackend,$rs,store,$_http,$_httpTokenRestService;
     afterEach(function(){
         //$rootScope.$apply();
     });
     beforeEach(angular.mock.module('app'));
-    beforeEach(angular.mock.inject(function(dataService, dataStore,_$httpBackend_,$rootScope){
+    beforeEach(angular.mock.inject(function(dataService, dataStore,_$httpBackend_,$rootScope,$http,httpTokenRestService){
         ds = dataService
         $httpBackend = _$httpBackend_;
         $rs = $rootScope;
         store = dataStore;
+        $_http = $http;
+        $_httpTokenRestService = httpTokenRestService;
         $httpBackend.when('GET','/api/author/1').respond({"meta":{"status":null,"messages":[]},'links':{},"author":{"1":{"id":1,"name":"Henrik Pejer"}}});
         $httpBackend.when('GET','/api/author/1/books/-').respond({"meta":{"status":null,"messages":[]},"author":{"1":{"id":1,"name":"Henrik Pejer"}},"books":{
             "1":{id:1,"title":"First book"},
@@ -33,6 +35,8 @@ describe('angularDataServiceModule', function(){
         $httpBackend.when('GET','/api/books/1').respond({"meta":{"status":null,"messages":[]},"books":{"1":{"id":1,"title":"New first title"}}});
         $httpBackend.when('POST','/api/books/1').respond({"meta":{"status":null,"messages":[]},"books":{"1":{"id":1,"title":"Updated title"}}});
         $httpBackend.when('POST','/api/author/new').respond({"meta":{"status":null,"messages":[]},"author":{"99":{"id":99,"name":"Newly Created Author"}}});
+
+
     }));
     var app = angular.module('app',['AngularDataServiceModule']);
     app.constant('angularDataServiceConfig', {
@@ -208,4 +212,43 @@ describe('angularDataServiceModule', function(){
         expect(store.inStore('something','2')).toBe(false);
     });
 
+    it('should re-run requests with 401 headers',function(){
+
+        var $firstEvent = false,$secondEvent = false,$thirdEvent = false;
+        $rs.$on('event:auth-loginConfirmed', function(event,token) {
+            $firstEvent = true;
+            $rs.$on('event:test', function(event, arg){
+                $thirdEvent = true;
+                arg.config.headers['AUTH-TOKEN']=token;
+            })
+        });
+        $rs.$on('event:auth-loginRequired', function() {
+            $secondEvent = true;
+            $_http.defaults.headers.common['AUTH-TOKEN'] = 'secret'
+            $_httpTokenRestService.loginConfirmed('secret');
+        });
+        var author;
+        $httpBackend.expectGET('/api/books/666',undefined,function(headers){
+            return headers['auth'] == 'false';
+        }).respond(401,'');
+
+        $httpBackend.expectGET('/api/books/666',undefined,function(headers){
+            return headers['AUTH-TOKEN'] == 'secret';
+        }).respond(200,'');
+        expect($firstEvent).toBe(false);
+        expect($secondEvent).toBe(false);
+        expect($thirdEvent).toBe(false);
+
+        var authorTest= ds.get({'books':'666'});
+        var res = null;
+        authorTest.books.then(function(val){
+            res = val
+        });
+        $httpBackend.flush();
+        $rs.$apply();
+        expect(res).toBe(null);
+        expect($firstEvent).toBe(true);
+        expect($secondEvent).toBe(true);
+        expect($thirdEvent).toBe(true);
+    });
 });

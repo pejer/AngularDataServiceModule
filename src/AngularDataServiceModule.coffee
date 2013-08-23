@@ -183,14 +183,78 @@ angularDataServiceModule.factory "dataStore", ['$q','$timeout','$rootScope', ($q
       @.get(model,dataId)
   }
 ]
+#
+# This is basically the brilliant Auth Interceptor Module
+# by Witold Szczerba
+#
+# The origignal license comment is below.
+#
+# @license HTTP Auth Interceptor Module for AngularJS
+# (c) 2012 Witold Szczerba
+# License: MIT
+#
+angularDataServiceModule.factory "httpTokenRestService", ['$rootScope','httpBuffer',($rootScope,httpBuffer)->
+  {
+    loginConfirmed:(data)->
+      $rootScope.$broadcast 'event:auth-loginConfirmed', data
+      httpBuffer.retryAll()
+  }
+]
 
+angularDataServiceModule.config ['$httpProvider',($httpProvider)->
+  interceptor = ['$rootScope', '$q', 'httpBuffer', ($rootScope, $q, httpBuffer)->
+    success = (response)->
+      response
+
+    error = (response)->
+      if (response.status == 401 && !response.config.ignoreAuthModule)
+        deferred = $q.defer()
+        httpBuffer.append(response.config, deferred)
+        $rootScope.$broadcast('event:auth-loginRequired')
+        return deferred.promise
+      $q.reject(response)
+
+    (promise)->
+      promise.then(success, error)
+  ]
+  $httpProvider.responseInterceptors.push(interceptor)
+]
+
+angularDataServiceModule.factory 'httpBuffer', ['$injector','$rootScope', ($injector,$rootScope)->
+  buffer = []
+  $http = null
+
+  retryHttpRequest = (config, deferred)->
+    successCallback = (response)->
+      deferred.resolve(response)
+    errorCallback = (response)->
+      deferred.reject(response)
+
+    $http = $http || $injector.get('$http')
+    $http(config).then successCallback, errorCallback
+
+  {
+    append: (config, deferred)->
+      buffer.push({
+        config: config,
+        deferred: deferred
+      })
+
+    retryAll: ()->
+      for buff in buffer
+        $rootScope.$broadcast('event:test',buff)
+        retryHttpRequest(buff.config, buff.deferred)
+      buffer = []
+      false
+  }
+]
 
 ###
   Grabbed from here : https://coderwall.com/p/ngisma
 ###
 angular.module('ng',null,null).run(['$rootScope', ($rootScope)->
   $rootScope.safeApply = (fn)->
-    if @.$root? && @.$root.$$phase?
+    if @? && @.$root? && @.$root.$$phase?
         phase = @.$root.$$phase
         if(phase == '$apply' || phase == '$digest')
           if fn? && (typeof(fn) == 'function')
