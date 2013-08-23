@@ -57,10 +57,10 @@
 
 <script src="js/angular.js"></script>
 <script src="js/angular-resource.js"></script>
-<script src="js/http-auth-interceptor.js"></script>
+<!-- <script src="js/http-auth-interceptor.js"></script> -->
 <script src="js/AngularDataServiceModule.js"></script>
 <script type="text/javascript">
-var app = angular.module('app',['AngularDataServiceModule','http-auth-interceptor']);
+var app = angular.module('app',['AngularDataServiceModule'/*,'http-auth-interceptor'*/]);
 app.constant('angularDataServiceConfig', {
     baseUri:"http://localhost/api",
     timeout: 10000,
@@ -68,7 +68,7 @@ app.constant('angularDataServiceConfig', {
     }
 );
 
-function ctrl($location, dataService,dataStore,dataObject,$scope,$http,$q,$rootScope,authService){
+function ctrl($location, dataService,dataStore,dataObject,$scope,$http,$q,$rootScope,httpTokenRestService){
     window.document.title = "STARTED!";
     $http.defaults.headers.common['AUTH-TOKEN'] = 'wrong_secret'
     $scope.$on('event:auth-loginConfirmed', function(event,token) {
@@ -78,7 +78,7 @@ function ctrl($location, dataService,dataStore,dataObject,$scope,$http,$q,$rootS
     });
     $scope.$on('event:auth-loginRequired', function() {
         $http.defaults.headers.common['AUTH-TOKEN'] = 'secret'
-        authService.loginConfirmed('secret');
+        httpTokenRestService.loginConfirmed('secret');
     });
     // console.log($http.defaults.headers.common);
     dataStore.set('user',dataService.get({'blend':'1'}).blend);
