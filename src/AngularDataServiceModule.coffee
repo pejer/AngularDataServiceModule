@@ -1,5 +1,4 @@
 'use strict'
-
 angularDataServiceModule = angular.module "AngularDataServiceModule", ['ngResource'], null
 ###
   Created by Henrik Pejer  mr (at) henrikpejer.com
@@ -18,14 +17,19 @@ angularDataServiceModule = angular.module "AngularDataServiceModule", ['ngResour
 # service
 
 #angularDataServiceModule.
-angularDataServiceModule.factory "dataService",
-  ['$http', 'dataStore', 'dataObject', '$q', '$rootScope','angularDataServiceConfig',($http, dataStore, dataObject, $q,$rootScope,config)->
+angularDataServiceModule.factory "dataService", ['$http', 'dataStore', 'dataObject', '$q', '$rootScope','angularDataServiceConfig',($http, dataStore, dataObject, $q,$rootScope,config)->
     #config = {
     #  baseUri: "http://localhost/api"
     #  timeOut: 1000
     #}
+    useLocalStoreage = if config.useLocalStorage then config.useLocalStorage else false
+
     serviceReturn = {
-      version: "0.1"
+      version: "0.1",
+      useLocalStorage:(val)->
+        if val?
+          useLocalStoreage = if val == true then true else false
+        useLocalStoreage
       new: (model)->
           new dataObject(model, 'new')
       get: (model, timeout = config.timeOut)->
@@ -39,15 +43,26 @@ angularDataServiceModule.factory "dataService",
                   uri += '/'+model+'/-'
             when typeof value == 'string'
                 if !dataStore.inStore model,value
+                  # perhaps check if we can get it from localStoreage
+                  if useLocalStoreage == true && window.localStorage && window.localStorage[model+'/'+value]?
+                    console.log "Local storage val", model, value, angular.fromJson(window.localStorage[model+'/'+value])
+                    dataStore.set(model, value, angular.extend(new dataObject(model, value), angular.fromJson(window.localStorage[model+'/'+value])))
+                  else
                     uri += '/'+model+'/'+value
+                else
+                  uri += '/'+model+'/'+value
                 dataReturn[model].push dataStore.get model,value, timeout
             when typeof value == 'object'
               modelSet = false
               angular.forEach(value,(value)->
                 if !dataStore.inStore model,value
                   if !modelSet
-                    modelSet = true
-                    uri += '/'+model+'/'+value
+                    if useLocalStoreage == true && window.localStorage && window.localStorage[model+'/'+value]?
+                      console.log "Local storage val", model, value, angular.fromJson(window.localStorage[model+'/'+value])
+                      dataStore.set(model, value, angular.extend(new dataObject(model, value), angular.fromJson(window.localStorage[model+'/'+value])))
+                    else
+                      modelSet = true
+                      uri += '/'+model+'/'+value
                   else
                     uri += ','+value
                 dataReturn[model].push dataStore.get model,value,timeout
@@ -88,8 +103,8 @@ angularDataServiceModule.factory "dataService",
         )
         ret
     }
-    serviceReturn
-  ]
+    return serviceReturn
+]
 
 angularDataServiceModule.factory "dataObject", ['$http','angularDataServiceConfig', ($http,config)->
   # walk through the data
@@ -109,6 +124,8 @@ angularDataServiceModule.factory "dataObject", ['$http','angularDataServiceConfi
                     if self[key] != value
                       self[key] = value
                 )
+                if config.useLocalStorage == true && window.localStorage?
+                  window.localStorage[self.$model+'/'+self.id] = angular.toJson(post)
             )
         )
     $refresh: ()->
@@ -118,11 +135,26 @@ angularDataServiceModule.factory "dataObject", ['$http','angularDataServiceConfi
           if self[key] != value
             self[key] = value
         )
+        if config.useLocalStorage == true && window.localStorage?
+          window.localStorage[self.$model+'/'+self.id] = angular.toJson(responseData.data[self.$model][self.id])
       )
 ]
 
-angularDataServiceModule.factory "dataStore", ['$q','$timeout','$rootScope', ($q,$timeout,$rootScope)->
+# todo: use local storage
+###
+  We could use local storage for the $$val - values.
+
+  Since we cannot store objects reliably, that the way we could go.
+
+  So, lets try it!
+###
+angularDataServiceModule.factory "dataStore", ['$q','$timeout','$rootScope', 'angularDataServiceConfig',($q,$timeout,$rootScope,config)->
   data = {}
+  useLocalStorage = if config.useLocalStorage then config.useLocalStorage else true
+  setLocalStorage = (key,value)->
+    if useLocalStorage
+      window.localStorage[key] = angular.toJson(value)
+
   {
     flush: (model)->
       if model?
@@ -179,7 +211,7 @@ angularDataServiceModule.factory "dataStore", ['$q','$timeout','$rootScope', ($q
         if !@.inStore(model,dataId)
           @.get(model,dataId)
         data[model][dataId].resolve(modelData)
-
+        setLocalStorage(model+'/'+dataId, modelData);
       @.get(model,dataId)
   }
 ]
@@ -220,6 +252,7 @@ angularDataServiceModule.config ['$httpProvider',($httpProvider)->
   $httpProvider.responseInterceptors.push(interceptor)
 ]
 
+# todo: rename event 'test:event'
 angularDataServiceModule.factory 'httpBuffer', ['$injector','$rootScope', ($injector,$rootScope)->
   buffer = []
   $http = null
