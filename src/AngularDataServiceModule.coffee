@@ -45,7 +45,6 @@ angularDataServiceModule.factory "dataService", ['$http', 'dataStore', 'dataObje
                 if !dataStore.inStore model,value
                   # perhaps check if we can get it from localStoreage
                   if useLocalStoreage == true && window.localStorage && window.localStorage[model+'/'+value]?
-                    console.log "Local storage val", model, value, angular.fromJson(window.localStorage[model+'/'+value])
                     dataStore.set(model, value, angular.extend(new dataObject(model, value), angular.fromJson(window.localStorage[model+'/'+value])))
                   else
                     uri += '/'+model+'/'+value
@@ -58,7 +57,6 @@ angularDataServiceModule.factory "dataService", ['$http', 'dataStore', 'dataObje
                 if !dataStore.inStore model,value
                   if !modelSet
                     if useLocalStoreage == true && window.localStorage && window.localStorage[model+'/'+value]?
-                      console.log "Local storage val", model, value, angular.fromJson(window.localStorage[model+'/'+value])
                       dataStore.set(model, value, angular.extend(new dataObject(model, value), angular.fromJson(window.localStorage[model+'/'+value])))
                     else
                       modelSet = true
