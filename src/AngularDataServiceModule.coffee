@@ -13,6 +13,7 @@ angularDataServiceModule = angular.module "AngularDataServiceModule", ['ngResour
     would get authors with id 1,2 and 3 plus their books
   + Cache to cache all data requested and also for reuse
   + Events for when data is being updated
+  + IF the app requires authentication, then we should authenticate _before_ using local storage...
 ###
 # service
 
@@ -138,14 +139,6 @@ angularDataServiceModule.factory "dataObject", ['$http','angularDataServiceConfi
       )
 ]
 
-# todo: use local storage
-###
-  We could use local storage for the $$val - values.
-
-  Since we cannot store objects reliably, that the way we could go.
-
-  So, lets try it!
-###
 angularDataServiceModule.factory "dataStore", ['$q','$timeout','$rootScope', 'angularDataServiceConfig',($q,$timeout,$rootScope,config)->
   data = {}
   useLocalStorage = if config.useLocalStorage then config.useLocalStorage else true
