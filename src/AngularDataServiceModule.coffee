@@ -18,7 +18,7 @@ angularDataServiceModule = angular.module "AngularDataServiceModule", ['ngResour
 # service
 
 #angularDataServiceModule.
-angularDataServiceModule.factory "dataService", ['$http', 'dataStore', 'dataObject', '$q', '$rootScope','angularDataServiceConfig',($http, dataStore, dataObject, $q,$rootScope,config)->
+angularDataServiceModule.factory "dataService", ['$http', 'dataStore', 'dataObject', '$q', '$rootScope','angularDataServiceConfig','$parse',($http, dataStore, dataObject, $q,$rootScope,config,$parse)->
     #config = {
     #  baseUri: "http://localhost/api"
     #  timeOut: 1000
@@ -174,7 +174,8 @@ angularDataServiceModule.factory "dataStore", ['$q','$timeout','$rootScope', 'an
         if dataObject.promise? && dataObject.promise.$$v?
             return dataObject.promise.$$v
         else
-          $q.all([dataObject.promise]).then((responseData)->
+          o = $q.all([dataObject.promise]);
+          o.then((responseData)->
             return responseData[0]
           )
       else
@@ -186,13 +187,15 @@ angularDataServiceModule.factory "dataStore", ['$q','$timeout','$rootScope', 'an
         )
         # timeout is here so that when an error or 404 occurs, the promise still resolves
         $timeout ()->
-            deferedObject.resolve()
+          deferedObject.resolve()
         ,timeout
         if dataId != null
           data[model][dataId] = deferedObject
         else
           data[model] = deferedObject
-        deferedObject.promise
+        deferedObject.promise.then((val)->
+          return val
+        )
     set: (model, dataId, modelData = null)->
       if modelData == null
         if !@.inStore(model)
@@ -224,7 +227,11 @@ angularDataServiceModule.factory "httpTokenRestService", ['$rootScope','httpBuff
   }
 ]
 
-angularDataServiceModule.config ['$httpProvider',($httpProvider)->
+angularDataServiceModule.config ['$httpProvider','$parseProvider',($httpProvider,$parseProvider)->
+  # this is _nuts_
+  # I... need to find away around this, promptly
+  $parseProvider.logPromiseWarnings(false);
+  $parseProvider.unwrapPromises(true);
   interceptor = ['$rootScope', '$q', 'httpBuffer', ($rootScope, $q, httpBuffer)->
     success = (response)->
       response
@@ -234,7 +241,9 @@ angularDataServiceModule.config ['$httpProvider',($httpProvider)->
         deferred = $q.defer()
         httpBuffer.append(response.config, deferred)
         $rootScope.$broadcast('event:auth-loginRequired')
-        return deferred.promise
+        return deferred.then((val)->
+          val
+        )
       $q.reject(response)
 
     (promise)->
