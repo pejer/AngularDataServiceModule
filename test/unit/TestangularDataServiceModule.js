@@ -217,7 +217,7 @@ describe('angularDataServiceModule', function(){
         var $firstEvent = false,$secondEvent = false,$thirdEvent = false;
         $rs.$on('event:auth-loginConfirmed', function(event,token) {
             $firstEvent = true;
-            $rs.$on('event:test', function(event, arg){
+            $rs.$on('event:auth-retry-request', function(event, arg){
                 $thirdEvent = true;
                 arg.config.headers['AUTH-TOKEN']=token;
             })
@@ -228,6 +228,10 @@ describe('angularDataServiceModule', function(){
             $_httpTokenRestService.loginConfirmed('secret');
         });
         var author;
+        /*
+            Since this weird 401 / 404 header status behaviour in 1.2 rc_3,
+            it seems as though we should return 404 here... very weird
+         */
         $httpBackend.expectGET('/api/books/666',undefined,function(headers){
             return headers['auth'] == 'false';
         }).respond(401,'');
