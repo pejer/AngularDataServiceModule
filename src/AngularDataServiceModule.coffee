@@ -237,13 +237,15 @@ angularDataServiceModule.config ['$httpProvider','$parseProvider',($httpProvider
       response
 
     error = (response)->
-      if (response.status == 401 && !response.config.ignoreAuthModule)
+      # requests going here, have failed for some reason
+      # remember that a 404 isn't a failed response but a response to a location that does not exist
+      # therefore, checking for status 404 is ok here since 401s will end up here
+      # a response code of 404 will end up in the success callback, above.
+      if (response.status == 404 && !response.config.ignoreAuthModule)
         deferred = $q.defer()
         httpBuffer.append(response.config, deferred)
         $rootScope.$broadcast('event:auth-loginRequired')
-        return deferred.then((val)->
-          val
-        )
+        return deferred.promise
       $q.reject(response)
 
     (promise)->
@@ -275,7 +277,7 @@ angularDataServiceModule.factory 'httpBuffer', ['$injector','$rootScope', ($inje
 
     retryAll: ()->
       for buff in buffer
-        $rootScope.$broadcast('event:test',buff)
+        $rootScope.$broadcast('event:auth-retry-request',buff)
         retryHttpRequest(buff.config, buff.deferred)
       buffer = []
       false
